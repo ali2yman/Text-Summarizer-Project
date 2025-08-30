@@ -2,6 +2,8 @@
 
 A Streamlit application that processes system ticket data and generates AI-powered storytelling summaries using Google Gemini AI.
 
+      https://ali2yman-text-summarizer-project-main-7hlwsl.streamlit.app/
+
 ## 📋 Features
 
 - **File Processing**: Upload TXT, CSV, or XLSX files
