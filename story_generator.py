@@ -33,7 +33,7 @@ def divide_tickets_into_sections(df):
     """
     Divide tickets into 5 chronological sections for storytelling.
     """
-    if df.empty:
+    if df is None or df.empty:
         return {section: pd.DataFrame() for section in STORY_SECTIONS}
     
     total_tickets = len(df)
@@ -55,18 +55,32 @@ def prepare_ticket_data_for_gemini(section_df):
     """
     Prepare ticket data in a format suitable for Gemini processing.
     """
-    if section_df.empty:
+    if section_df is None or section_df.empty:
         return "No tickets in this section."
     
     ticket_summaries = []
     for _, ticket in section_df.iterrows():
+        # Handle potential missing ACCEPTANCE_TIME
+        try:
+            date_str = ticket['ACCEPTANCE_TIME'].strftime('%B %d, %Y') if pd.notnull(ticket['ACCEPTANCE_TIME']) else 'Date unavailable'
+        except (KeyError, AttributeError):
+            date_str = 'Date unavailable'
+        
+        # Handle potential missing columns
+        order_number = ticket.get('ORDER_NUMBER', 'Unknown')
+        customer_number = ticket.get('CUSTOMER_NUMBER', 'Unknown')
+        order_desc_1 = ticket.get('ORDER_DESCRIPTION_1', 'No description')
+        order_desc_2 = ticket.get('ORDER_DESCRIPTION_2', 'No description')
+        completion_result = ticket.get('COMPLETION_RESULT_KB', 'No resolution info')
+        notes = ticket.get('NOTE_MAXIMUM', 'No additional notes')
+        
         ticket_info = f"""
-Ticket: {ticket['ORDER_NUMBER']}
-Date: {ticket['ACCEPTANCE_TIME'].strftime('%B %d, %Y')}
-Customer: {ticket['CUSTOMER_NUMBER']}
-Issue: {ticket['ORDER_DESCRIPTION_1']} - {ticket['ORDER_DESCRIPTION_2']}
-Resolution: {ticket['COMPLETION_RESULT_KB']}
-Notes: {ticket.get('NOTE_MAXIMUM', 'No additional notes')}
+Ticket: {order_number}
+Date: {date_str}
+Customer: {customer_number}
+Issue: {order_desc_1} - {order_desc_2}
+Resolution: {completion_result}
+Notes: {notes}
 """
         ticket_summaries.append(ticket_info.strip())
     
@@ -129,8 +143,12 @@ def create_product_summary_with_gemini(df, product_name):
     """
     Create complete storytelling summary for a product using Gemini AI.
     """
-    if df.empty:
+    if df is None or df.empty:
         return f"# {product_name} Service Summary\n\nNo tickets found for this product category."
+    
+    # Check if required columns exist
+    if 'ACCEPTANCE_TIME' not in df.columns:
+        return f"# {product_name} Service Summary\n\nError: Missing required ACCEPTANCE_TIME column."
     
     # Divide into sections
     sections = divide_tickets_into_sections(df)
@@ -139,26 +157,34 @@ def create_product_summary_with_gemini(df, product_name):
     summary = f"# {product_name} Service Journey\n\n"
     
     for section_name, section_df in sections.items():
-        if section_df.empty:
+        if section_df is None or section_df.empty:
             continue
         
         summary += f"## {section_name}\n\n"
         
         # Timeframe
-        if not section_df.empty:
-            start_date = section_df['ACCEPTANCE_TIME'].min().strftime('%B %d, %Y')
-            end_date = section_df['ACCEPTANCE_TIME'].max().strftime('%B %d, %Y')
-            if start_date == end_date:
-                summary += f"**Timeframe:** {start_date}\n\n"
+        if not section_df.empty and 'ACCEPTANCE_TIME' in section_df.columns:
+            valid_dates = section_df['ACCEPTANCE_TIME'].dropna()
+            if len(valid_dates) > 0:
+                start_date = valid_dates.min().strftime('%B %d, %Y')
+                end_date = valid_dates.max().strftime('%B %d, %Y')
+                if start_date == end_date:
+                    summary += f"**Timeframe:** {start_date}\n\n"
+                else:
+                    summary += f"**Timeframe:** {start_date} to {end_date}\n\n"
             else:
-                summary += f"**Timeframe:** {start_date} to {end_date}\n\n"
+                summary += "**Timeframe:** Date information unavailable\n\n"
         
         # Ticket numbers
-        ticket_numbers = section_df['ORDER_NUMBER'].tolist()
-        summary += f"**Ticket Numbers:** {', '.join(ticket_numbers[:5])}"
-        if len(ticket_numbers) > 5:
-            summary += f" (and {len(ticket_numbers)-5} more)"
-        summary += "\n\n"
+        if 'ORDER_NUMBER' in section_df.columns:
+            ticket_numbers = section_df['ORDER_NUMBER'].dropna().tolist()
+            if ticket_numbers:
+                summary += f"**Ticket Numbers:** {', '.join(map(str, ticket_numbers[:5]))}"
+                if len(ticket_numbers) > 5:
+                    summary += f" (and {len(ticket_numbers)-5} more)"
+                summary += "\n\n"
+            else:
+                summary += "**Ticket Numbers:** No ticket numbers available\n\n"
         
         # Gemini-generated narrative
         ticket_data = prepare_ticket_data_for_gemini(section_df)
@@ -174,7 +200,13 @@ def generate_all_summaries_with_gemini(df):
     """
     summaries = {}
     
-    for product in df['PRODUCT'].unique():
+    if df is None or df.empty:
+        return summaries
+    
+    if 'PRODUCT' not in df.columns:
+        return {"Error": "PRODUCT column not found in dataset"}
+    
+    for product in df['PRODUCT'].dropna().unique():
         product_df = df[df['PRODUCT'] == product]
         summaries[product] = create_product_summary_with_gemini(product_df, product)
     
