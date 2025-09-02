@@ -240,35 +240,35 @@ def main():
                 except Exception as e:
                     st.error(f"Error preparing CSV export: {str(e)}")
             
-            with col2:
-                # Export summary report
-                if api_key:
-                    try:
-                        summary_text = f"""# Ticket Summary Report
-Generated on: {datetime.now().strftime('%Y-%m-%d %H:%M')}
+#             with col2:
+#                 # Export summary report
+#                 if api_key:
+#                     try:
+#                         summary_text = f"""# Ticket Summary Report
+# Generated on: {datetime.now().strftime('%Y-%m-%d %H:%M')}
 
-## Data Overview
-- Total Tickets: {summary['total_tickets']:,}
-- Unique Customers: {summary['unique_customers']:,}
-- Date Range: {summary['date_range_days']} days
+# ## Data Overview
+# - Total Tickets: {summary['total_tickets']:,}
+# - Unique Customers: {summary['unique_customers']:,}
+# - Date Range: {summary['date_range_days']} days
 
-## Product Breakdown
-"""
-                        for product, count in summary['product_counts'].items():
-                            summary_text += f"- {product}: {count:,} tickets\n"
+# ## Product Breakdown
+# """
+#                         for product, count in summary['product_counts'].items():
+#                             summary_text += f"- {product}: {count:,} tickets\n"
                         
-                        insights = generate_business_insights(df_processed)
-                        summary_text += f"\n## Business Insights\n{insights}"
+#                         insights = generate_business_insights(df_processed)
+#                         summary_text += f"\n## Business Insights\n{insights}"
                         
-                        st.download_button(
-                            "📄 Download Summary Report",
-                            summary_text,
-                            f"ticket_report_{datetime.now().strftime('%Y%m%d_%H%M')}.txt",
-                            "text/plain",
-                            help="Download a complete summary report"
-                        )
-                    except Exception as e:
-                        st.error(f"Error preparing summary report: {str(e)}")
+#                         st.download_button(
+#                             "📄 Download Summary Report",
+#                             summary_text,
+#                             f"ticket_report_{datetime.now().strftime('%Y%m%d_%H%M')}.txt",
+#                             "text/plain",
+#                             help="Download a complete summary report"
+#                         )
+#                     except Exception as e:
+#                         st.error(f"Error preparing summary report: {str(e)}")
     
     else:
         st.info("👆 Upload a ticket data file to start analysis")
